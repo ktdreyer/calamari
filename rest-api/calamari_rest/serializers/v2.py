@@ -44,7 +44,10 @@ class ValidatingSerializer(serializers.Serializer):
         # like http://www.django-rest-framework.org/api-guide/serializers#dynamically-modifying-fields
         filtered_data = {}
         for field, value in self.init_data.iteritems():
-            filtered_data[field] = self.data[field]
+            if isinstance(self.data[field], list):
+                filtered_data[field] = [dict(x) for x in self.data[field]]
+            else:
+                filtered_data[field] = self.data[field]
 
         return filtered_data
 
