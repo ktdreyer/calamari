@@ -22,7 +22,7 @@ class CrushNodeRequestFactory(RequestFactory):
         name, bucket_type, items = [attributes[key] for key in ('name', 'bucket_type', 'items')]
         commands = []
 
-        # TODO change to use rename-bucket when #9526 lands in ceph
+        # TODO change to use rename-bucket when #9526 lands in ceph 0.89
         if name != current_node['name'] or bucket_type != current_node['type_name']:
             commands.append(add_bucket(name, bucket_type))
             if parent is not None:
@@ -78,7 +78,7 @@ class CrushNodeRequestFactory(RequestFactory):
                 child = 'osd.{id}'.format(id=id)
                 commands.append(reweight_osd(child, 0.0))
                 commands.append(remove_bucket(child, None))
-                commands.append(move_osd(id, name, bucket_type))
+                commands += move_osd(id, name, bucket_type)
                 commands.append(reweight_osd(child, item['weight']))
         return commands
 
@@ -102,12 +102,18 @@ def reweight_osd(name, weight):
 
 
 def move_osd(osd_id, parent_name, parent_type):
-    return ('osd crush add', {'args': ['{type}={name}'.format(type=parent_type,
+    # TODO when we move store a key to show what path we should be placed at when OSD starts
+    # TODO also store our physical host so that hot-plugging can work
+    return (('osd crush add', {'args': ['{type}={name}'.format(type=parent_type,
                                                               name=parent_name)],
                               'id': osd_id,
                               'weight': 0.0,
                               }
-            )
+            ),
+            ('config-key put', {'key': 'calamari:1:osd_crush_location:osd{id}'.format(id=osd_id),
+                                'val': '{type}={name}'.format(type=parent_type, name=parent_name)
+                                }
+            ))
 
 
 def move_bucket(name, parent_name, parent_type):
